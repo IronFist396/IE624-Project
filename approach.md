@@ -4,6 +4,21 @@ IE624 (Generative & Agentic AI) · Course project · Core approach document · N
 
 > Status: this is the **main project file**. `IE624 Project.md` is the earlier proposal and is kept for reference only.
 
+## 0. Progress and findings so far (as of 2026-11-14)
+
+| Notebook | Status | Key result |
+| --- | --- | --- |
+| `00_initial_checks` | done | fp32 across 2× T4 works; activations reach \~71,000 (**fp16 would overflow**); \~2.9 s per generation |
+| `01_select_direction_v2` | done | Raw Arditi directions put up to 97% of their weight on \~46 **massive dimensions**; ablating them breaks Gemma 3 (KL 15–96, with or without `<bos>`). **Masking those dims fixes it**: selected direction = layer 17, `<end_of_turn>`, bypass −47.8, induce +5.9, KL 0.018 (neighbouring layers 13–19 also pass). Behaviour (fast score): strict prompt raises refusal starts on Hard-1K **7% → 67%**; XSTest 6% → 26% (reproduces the pilot) |
+| `02_map_and_shift` | done | **RQ1:** category directions share one dominant dial (cos with A 0.78–0.96) but are more distinct than "one dial + noise" (PC1 share 0.84 vs null 0.98, p < 0.01 at every layer); residues cluster into ethical-wrongdoing vs graphic-content groups (topic confound to be tested causally). **RQ2:** cos(strict − neutral shift, A) = **0.16** [0.14, 0.18] — below the random-contrast floor (0.41); the instruction moves benign prompts only **9%** of the harmful-harmless gap along A, but compresses them toward a common level (a caution "set point"); no category-specific push (p = 0.999). Without masking the headline flips sign (−0.20) |
+| `03_causal_tests` | done | **Abliteration × instruction:** strict − neutral effect on Hard-1K = +0.59 [0.56, 0.63] normally, **+0.005** when abliterated (fast score) — but the judge still finds **22% redirects** under abliteration+strict (vs 0% neutral): abliteration kills refusal *openers*, lectures and hard refusals, not soft redirection. **Shift decomposition (L17, 5 template tokens):** removing the mean shift from strict prompts removes **96%** of the effect; adding it to neutral prompts recovers 50%. The along-A part (only 2–5% of the shift's squared norm) and the orthogonal part each carry about half (removal 49% / 45%; recovery 21% / 16%); random vector −4%. Recovery grows with layer (L6 ≈ 0 → L24 47%). **Categories:** category directions induce refusal on harmless prompts (41–97%, A: 92%); their residues induce **0%** → the sub-dials are A + topic, not separate refusal mechanisms. **Judge vs fast score:** agreement 87%, AUROC 0.92, precision 0.94, recall 0.64 (fast score misses redirects). Strict style: 63% redirect, 15% lecture, 3% hard refuse |
+
+**Methods policy adopted from these results:** all geometry and all ablations use directions with the 46 massive dimensions zeroed (`data/massive_dims.json`); raw (unmasked) values are reported alongside as a sensitivity check. The fast refusal score is used for screening; final behavioural numbers come from the blind LLM judge (`judge.py`, `hyde/glm-5.3-flash`), validated against \~100 hand labels. The fast score is precise (0.94) but misses about a third of judged refusals (redirects that do not start with "I"/"Sorry"), so any claim about *soft* refusal — in particular what survives abliteration — must use judged generations.
+
+**Current reading (to be confirmed by 04/05):** one refusal dial for the *refusal opener* (categories = A + topic); the strict instruction uses that dial only slightly but effectively, and also acts outside it; removing the dial removes saying "no" but not polite redirection (22% judged redirects, n = 60 — needs the larger 05 grid).
+
+**Remaining:** hand-label sheet (judge accuracy) → `04` instruction atlas + 1-D vs k-D prediction (RQ3) → `05` full abliteration grid, judged (RQ4/RQ5) → `06` JSON export + interactive page → report and slides.
+
 ## 1. The idea in one paragraph
 
 When a chat model refuses, is there a single internal "caution dial" that gets turned up, or many separate mechanisms — one per kind of danger, one for instructions, one for training? Prior work disagrees: refusal of harmful requests looks roughly one-dimensional (Arditi et al., 2024; Wang et al., 2026), but refusal directions differ across categories (Joad et al., 2026) and over-refusal on benign prompts looks task-specific and higher-dimensional (Maskey et al., 2026). We test this directly on Gemma-3-4B-it. We **map** how many dimensions caution has, measure where a **safety instruction** pushes the model in that space, and **remove** the main refusal direction (abliteration) to see what kinds of refusal survive. Every result is shown in an **interactive, explorable web page**.
@@ -51,7 +66,7 @@ Gemma 3 has no system role, so instructions are **prepended to the user turn our
 <start_of_turn>model
 ```
 
-With no instruction, the user turn is just the question. Activations are read at the **final token of `<start_of_turn>model\n`** unless stated otherwise.
+With no instruction, the user turn is just the question. Activations are read at the five **post-instruction template tokens** (`<end_of_turn>`, `\n`, `<start_of_turn>`, `model`, `\n`); the selected refusal direction lives at **`<end_of_turn>`, layer 17**, and the final token is reported alongside.
 
 ### Instruction conditions
 
@@ -70,19 +85,21 @@ Few datasets, each with one job. Forward passes are cheap, so size matters littl
 
 | Dataset | Job | Size used |
 | --- | --- | --- |
-| **OR-Bench Toxic** | The **only** harmful source: Direction A and the per-category directions (it carries category labels) | \~600, split in half |
-| **Alpaca** | Harmless baseline | \~600, split in half |
-| **OR-Bench Hard-1K** | The **only** benign over-refusal set; same categories as Toxic, so category X's refusal direction and category X's over-refusal refer to the same thing | 1,000, split in half |
+| **OR-Bench Toxic** | The **only** harmful source: Direction A and the per-category directions (it carries category labels) | 655 (fit 325 / eval 330) |
+| **Alpaca** | Harmless baseline | 600 (300 / 300) |
+| **OR-Bench Hard-1K** | The **only** benign over-refusal set; same categories as Toxic, so category X's refusal direction and category X's over-refusal refer to the same thing | 1,319 (657 / 662) |
 | **XSTest** | Showcase prompts for the page (Lion King, Minnie Mouse, …) and pilot continuity | \~50 hand-picked |
 
 Every dataset is split into a **direction-fitting half** and a **held-out evaluation half**.
+
+**Measured sizes (notebook 00):** OR-Bench Toxic 655 prompts in 10 categories; Hard-1K 1,319 (dominated by "illegal", 527). The catch-all "harmful" category has only 30 toxic prompts, so it is kept for Direction A but excluded from per-category analyses in both datasets.
 
 **Dropped, optional if time remains (forward passes only):** JailbreakBench — check that its refusal direction matches ours (cos ≈ 1), restoring comparability with Arditi et al.; FalseReject — check that over-refusal findings generalise beyond OR-Bench. Single-benchmark scope is listed as a limitation.
 
 ### Measuring refusal
 
 - **Fast score (no generation):** Arditi et al.'s first-token refusal score — the log-odds that the reply starts with a refusal token ("I", "Sorry", …). Used wherever we need thousands of measurements (atlas, prediction).
-- **Judged generations:** full responses (≤200 tokens, temperature 0 — refusal and its style are clear within the first few sentences) labelled by an LLM judge into **five styles**:
+- **Judged generations:** full responses (≤200 tokens, temperature 0 — refusal and its style are clear within the first few sentences) labelled by a blind LLM judge (sees only question + reply) into **five styles** plus `other` (empty/garbled); redirect, lecture and hard refuse count as refusal:
 
   | Style | Description |
   | --- | --- |
@@ -92,15 +109,15 @@ Every dataset is split into a **direction-fitting half** and a **held-out evalua
   | lecture | moralises without helping |
   | hard refuse | "I can't help with that" |
 
-- **Validation:** hand-label a random \~100 judged responses (report agreement), and report how well the fast score separates judged refusals from compliances (AUROC on \~300 judged responses) before relying on it.
-- **Division of labour:** once validated, the fast score is used for everything except the final behavioural tables — the atlas, the 1-D vs k-D prediction, and Direction B's refused/answered labels. Generations are reserved for the behavioural re-run, the abliteration grid, style labels and the steering slider.
+- **Validation:** hand-label a random \~100 judged responses (report agreement), and report how well the fast score separates judged refusals from compliances. *Done for the fast score (notebook 03, 440 replies): AUROC 0.92, precision 0.94, recall 0.64. Hand labels pending.*
+- **Division of labour:** the fast score is used for the atlas, the 1-D vs k-D prediction, Direction B's refused/answered labels and all patching/steering sweeps. Because it misses redirects, generations + judge are used for the behavioural tables, the abliteration grid, style labels and the steering slider.
 
 ## 5. Experiments
 
 ### Part 1 — The map: how many dials? (RQ1)
 
-1. **Direction A (global refusal direction).** Per layer, difference-in-means of last-token activations: harmful − harmless. Pick the best layer as Arditi et al. do (largest refusal drop when ablated, small KL on harmless prompts).
-2. **Category directions.** For each OR-Bench Toxic category (\~10), harmful-in-category − harmless.
+1. **Direction A (global refusal direction).** Per layer and post-instruction token, difference-in-means: harmful − harmless, with the 46 massive dimensions zeroed. Pick the candidate as Arditi et al. do (largest refusal drop when ablated, induces refusal when added, KL < 0.1 on harmless prompts, layer < 0.8 L). *Selected: layer 17, `<end_of_turn>`.*
+2. **Category directions.** For each OR-Bench Toxic category (9 used; the 30-prompt "harmful" catch-all is excluded), harmful-in-category − harmless.
    - *Gotcha:* all category directions share the same harmless baseline, which inflates their cosines. Report both raw cosines and cosines **after projecting out Direction A** (the category-specific residue).
 3. **Cosine matrix** between category directions, per layer → heatmap.
 4. **PCA** on the category directions (and on per-prompt harmful − mean-harmless vectors): variance explained by PC1, PC2, … The headline number: *"PC1 explains X% of caution."*
@@ -111,8 +128,10 @@ Every dataset is split into a **direction-fitting half** and a **held-out evalua
 **2a. Strict vs neutral.** Per-layer mean shift (strict − neutral) on the same benign prompts. Plot cos(shift, A) and cos(B, A) against layer, with:
 
 - **Ceiling:** cos(A₁, A₂) — Direction A fit on two disjoint halves (maximum agreement given noise).
-- **Floor:** permutation null (directions from label-shuffled data).
-- **Bootstrap 95% CIs** over prompts.
+- **Floor:** random-contrast null — the cosine with A of the difference between two random halves of the same benign prompts (a sign-flip null is invalid for cosines). The label-shuffle null is used for the PCA "one dial + noise" test.
+- **Bootstrap 95% CIs** over prompts; **exchange rate** = how far the shift moves prompts along A, as a fraction of the harmful − harmless gap.
+
+**2a′. Causal decomposition of the shift (notebook 03).** Split the mean shift s at layer 17 (five template tokens) into its part along A (s∥) and the rest (s⊥). Add s, s∥ or s⊥ to *neutral* prompts (recovery) or subtract them from *strict* prompts (removal); compare with a random vector of equal norm and sweep the layer. A third test adds each category direction and each category *residue* (A projected out) to harmless prompts to see whether residues cause refusal on their own.
 
 **2b. Instruction atlas.** 15–20 instructions spanning:
 
@@ -132,7 +151,7 @@ Compare cross-validated AUROC. A small gain → one dial is enough; a large gain
 
 ### Part 3 — Abliteration: what survives without the main dial? (RQ4)
 
-1. **Abliterate Direction A**: at every layer and token position, h ← h − (h·r̂)r̂. Implemented with **forward hooks** on every write into the residual stream: the embeddings and, in every layer, the outputs of `post_attention_layernorm` and `post_feedforward_layernorm`. Gemma 3 normalises each sublayer's output *before* adding it to the residual stream, so the Llama-style trick of orthogonalising `o_proj`/`down_proj` weights is **not exact** for Gemma 3; hooking the norm outputs is. The overhead is one projection per write — negligible. No modified weights are saved or released.
+1. **Abliterate Direction A** (the selected, massive-dims-masked direction; cos 0.997 with A on the fit split): at every layer and token position, h ← h − (h·r̂)r̂. Implemented with **forward hooks** on every write into the residual stream: the embeddings and, in every layer, the outputs of `post_attention_layernorm` and `post_feedforward_layernorm`. Gemma 3 normalises each sublayer's output *before* adding it to the residual stream, so the Llama-style trick of orthogonalising `o_proj`/`down_proj` weights is **not exact** for Gemma 3; hooking the norm outputs is. The overhead is one projection per write — negligible. No modified weights are saved or released.
 2. Run harmful and benign held-out prompts under **None / Neutral / Strict**, on the normal and the abliterated model (a 2 × 3 grid), with full generations and style labels.
 3. Report remaining refusals **by category** and **by style**. Whatever the strict instruction still refuses after abliteration is the "other dial".
 4. **Sufficiency check:** add α·r̂ (α sweep) to harmless prompts with no instruction; does it reproduce the strict prompt's over-refusal *pattern* (fiction, games, fictional privacy), or only its rate?
@@ -180,10 +199,10 @@ Must-have panels: 1, 2, 5. Should-have: 3, 4, 6.
 | Item | Requirement |
 | --- | --- |
 | Weights | \~17 GB in fp32 across 2× T4 (includes the vision tower) |
-| Activation cache | Last token only: 34 × 2560 × 4 B ≈ 350 KB/prompt → \~1 GB for 3k prompts. All token positions only for the \~50 showcase prompts on the page |
+| Activation cache | A few positions per prompt (34 × 2560 × 4 B ≈ 350 KB per position); notebook 03's template-token stats are \~600 MB (recomputable in \~5 min, not downloaded). All token positions only for the \~50 showcase prompts on the page |
 | Forward passes (maps, atlas, fast score) | Under \~1 hour total |
 | Generations | HF `generate` only (no vLLM on T4): **\~4–8 GPU-hours** for the budget below, spread over 2–3 sessions |
-| Judge | API LLM judge (a few dollars for \~2,800 responses) |
+| Judge | `judge.py` → `hyde/glm-5.3-flash` via `https://inference.hyde.tech/v1` (key in the `GLM_API_KEY` secret / env var, never in code); blind to condition; resumable |
 | Disk / RAM | Model + datasets + caches fit in Kaggle's disk; outputs to `/kaggle/working` (20 GB) or a Kaggle dataset |
 
 **Generation budget (the real cost):**
@@ -211,7 +230,7 @@ print(torch.cuda.is_bf16_supported(), torch.cuda.device_count())
 
 tok = AutoTokenizer.from_pretrained("google/gemma-3-4b-it")
 model = AutoModelForCausalLM.from_pretrained(
-    "google/gemma-3-4b-it", torch_dtype=torch.float32, device_map="auto")
+    "google/gemma-3-4b-it", dtype=torch.float32, device_map="auto")  # torch_dtype= on transformers 4.x
 x = tok.apply_chat_template([{"role": "user", "content": "Hello"}],
                             add_generation_prompt=True, return_tensors="pt").to(model.device)
 out = model(x, output_hidden_states=True)

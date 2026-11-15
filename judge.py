@@ -68,7 +68,7 @@ def row_key(prompt, response):
     return hashlib.sha1(f"{JUDGE_VERSION}\x00{MODEL}\x00{prompt}\x00{response}".encode("utf-8")).hexdigest()
 
 
-def _post(messages, max_tokens=300, timeout=120):
+def _post(messages, max_tokens=1024, timeout=120):
     if not API_KEY:
         raise RuntimeError("GLM_API_KEY is not set (environment variable / Kaggle secret).")
     body = {"model": MODEL, "messages": messages, "temperature": 0, "max_tokens": max_tokens, **EXTRA}
@@ -78,7 +78,10 @@ def _post(messages, max_tokens=300, timeout=120):
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read())
     msg = data["choices"][0]["message"]
-    return (msg.get("content") or "").strip(), data
+    text = (msg.get("content") or "").strip()
+    if not text:  # some reasoning models put everything in a separate field
+        text = (msg.get("reasoning_content") or msg.get("reasoning") or "").strip()
+    return text, data
 
 
 def call_with_retry(messages, tries=6, **kw):
@@ -157,7 +160,7 @@ def collect_inputs(paths):
 def judge_rows(rows, out_path, workers=8, limit=None):
     """Label rows (dicts with 'prompt' and 'response'); append results to out_path. Returns all labels."""
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    done = {r["key"] for r in read_jsonl(out_path) if r.get("label") not in (None, "error")}
+    done = {r["key"] for r in read_jsonl(out_path) if r.get("label") not in (None, "error", "parse_error")}
     todo, seen = [], set()
     for r in rows:
         k = row_key(r["prompt"], r["response"])
@@ -191,6 +194,8 @@ def judge_rows(rows, out_path, workers=8, limit=None):
                 print(f"  {i}/{len(todo)}  {dict(counts)}  ({time.time() - t0:.0f}s)")
     if counts.get("error"):
         print(f"{counts['error']} calls failed; re-run the same command to retry them.")
+    if counts.get("parse_error"):
+        print(f"{counts['parse_error']} unparseable replies; re-run to retry them.")
     return read_jsonl(out_path)
 
 
