@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Dial or Many?</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --o1: #d6d5cf; --o2: #2a78d6; --o3: #104281;          /* ordinal: comply -> redirect -> refuse */
+  --div-neg: #2a78d6; --div-mid: #f0efec; --div-pos: #e34948;
+  --accent: #2a78d6; --accent-ink: #1c5cab;
+  --note: #fff6e0; --note-border: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --o1: #3a3a37; --o2: #3987e5; --o3: #9ec5f4;
+    --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767;
+    --accent: #3987e5; --accent-ink: #86b6ef;
+    --note: #2a2414; --note-border: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --o1: #3a3a37; --o2: #3987e5; --o3: #9ec5f4;
+  --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767;
+  --accent: #3987e5; --accent-ink: #86b6ef;
+  --note: #2a2414; --note-border: #c98500;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+nav { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; gap: 4px; align-items: center; padding: 8px 16px; overflow-x: auto; white-space: nowrap; }
+nav a { color: var(--ink-2); text-decoration: none; font-size: 14px; padding: 4px 10px; border-radius: 6px; }
+nav a:hover { background: var(--surface-2); color: var(--ink); }
+nav .spacer { flex: 1; }
+button, select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--axis); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button:hover { background: var(--surface-2); }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+main { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+header.hero { padding: 56px 0 24px; }
+.kicker { color: var(--accent-ink); font-weight: 600; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 8px 0 16px; }
+h2 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; }
+h3 { font-size: 18px; margin: 24px 0 8px; }
+.lede { font-size: 19px; color: var(--ink-2); max-width: 760px; }
+.answer { font-size: 22px; font-weight: 600; margin: 24px 0; padding: 16px 20px; border-left: 4px solid var(--accent);
+  background: var(--surface); border-radius: 0 10px 10px 0; }
+section { padding: 56px 0 8px; border-top: 1px solid var(--grid); scroll-margin-top: 48px; }
+section > p, .prose p { max-width: 760px; }
+.rq { display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent-ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; }
+.card h3 { margin-top: 0; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.tile .num { font-size: 34px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .lbl { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
+.takeaway { background: var(--note); border-left: 4px solid var(--note-border); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; max-width: 820px; }
+.takeaway > b:first-child { display: block; margin-bottom: 2px; }
+#heatChart { max-width: 720px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
+.controls .lab { color: var(--ink-2); font-size: 14px; margin-right: 4px; }
+.chart { width: 100%; overflow: hidden; }
+.chart svg { display: block; width: 100%; height: auto; }
+.caption { color: var(--ink-2); font-size: 14px; margin: 8px 0 0; max-width: 820px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin: 4px 0 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px;
+  background: var(--c); vertical-align: -1px; }
+svg text { fill: var(--ink-2); font-size: 12px; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+svg .axis { stroke: var(--axis); }
+svg .gridline { stroke: var(--grid); }
+#tip { position: fixed; pointer-events: none; z-index: 50; background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,.15); border-radius: 8px; padding: 8px 10px; font-size: 13px; max-width: 320px; display: none; }
+#tip b { display: block; }
+.gloss { display: grid; grid-template-columns: 160px 1fr; gap: 6px 16px; font-size: 15px; }
+.gloss dt { font-weight: 600; }
+.gloss dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 600px) { .gloss { grid-template-columns: 1fr; } .gloss dd { margin-bottom: 8px; } }
+.instr { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; background: var(--surface-2);
+  border-radius: 8px; padding: 10px 12px; color: var(--ink); white-space: pre-wrap; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+.steps li { counter-increment: s; position: relative; padding-left: 40px; margin: 12px 0; max-width: 760px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+/* explorer */
+.q { font-size: 18px; font-weight: 600; margin: 8px 0 4px; }
+.qmeta { color: var(--muted); font-size: 13px; }
+.xgrid { display: grid; grid-template-columns: 150px 1fr 1fr; gap: 8px; margin-top: 12px; }
+.xgrid .hd { font-weight: 600; font-size: 14px; color: var(--ink-2); padding: 4px 0; }
+.xgrid .rowlab { font-weight: 600; font-size: 14px; padding-top: 10px; }
+.xgrid .rowlab small { display: block; font-weight: 400; color: var(--muted); }
+.reply { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px;
+  max-height: 190px; overflow: auto; white-space: pre-wrap; }
+.reply.open { max-height: none; }
+.badge { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; margin-bottom: 6px; border: 1px solid var(--border); }
+.badge.comply { background: var(--surface-2); color: var(--ink-2); }
+.badge.redirect { background: var(--o2); color: #fff; }
+.badge.refuse { background: var(--o3); color: #fff; }
+:root[data-theme="dark"] .badge.refuse { color: #0b0b0b; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .badge.refuse { color: #0b0b0b; } }
+@media (max-width: 720px) { .xgrid { grid-template-columns: 1fr; } .xgrid .hd { display: none; } .xgrid .rowlab { padding-top: 16px; } }
+table.data { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+table.data th { color: var(--ink-2); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+details summary { cursor: pointer; color: var(--accent-ink); font-size: 14px; margin-top: 8px; }
+.pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pipeline div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.pipeline b { display: block; color: var(--accent-ink); }
+footer { color: var(--muted); font-size: 13px; padding: 40px 0; max-width: 760px; }
+</style>
+</head>
+<body>
+<nav aria-label="Sections">
+  <a href="#primer">How it works</a><a href="#setup">Setup</a><a href="#rq1">1 · One dial?</a>
+  <a href="#rq2">2 · The instruction</a><a href="#rq4">3 · Remove the dial</a><a href="#explorer">Explorer</a>
+  <a href="#rq3">4 · Predicting</a><a href="#surprises">Surprises</a><a href="#method">Method</a><a href="#answer">Answer</a>
+  <span class="spacer"></span><button id="theme" type="button" aria-label="Toggle dark mode">◐ Theme</button>
+</nav>
+<div id="tip" role="tooltip"></div>
+<main>
+
+<header class="hero">
+  <div class="kicker">IE624 · Generative &amp; Agentic AI · Course project</div>
+  <h1>One Dial or Many?<br>Mapping caution inside Gemma-3-4B</h1>
+  <p class="lede">When a chatbot refuses, is there a single internal "caution dial" that gets turned up, or several separate mechanisms? We opened up Google's Gemma-3-4B, found the part of its internal activity that controls refusal, and then removed it, amplified it and pushed it with different instructions to find out.</p>
+  <div class="answer">Short answer: <span style="color:var(--accent-ink)">one dial for "no", a second route for "not quite".</span></div>
+  <div class="tiles" id="heroTiles"></div>
+</header>
+
+<!-- ============================ PRIMER ============================ -->
+<section id="primer">
+  <h2>How a model "decides" to refuse</h2>
+  <p>A language model reads your message one token (word piece) at a time. At every layer, each token is represented by a list of <b>2,560 numbers</b>, the model's internal "state". Researchers found that refusal shows up as one particular <b>direction</b> in that 2,560-dimensional space (<a href="https://arxiv.org/abs/2406.11717">Arditi et al., 2024</a>). How far a prompt's state points along that direction is the <b>dial</b>: far along means "this looks harmful, refuse".</p>
+  <div class="card">
+    <h3>Try it: a 2-D sketch of the idea</h3>
+    <p class="caption" style="margin-top:0">Each dot is one prompt's internal state, squashed from 2,560 numbers down to 2. This is an illustration, not real data; the real numbers follow below.</p>
+    <div class="controls">
+      <span class="lab">Remove the dial (abliteration):</span>
+      <input type="range" id="ablSlider" min="0" max="100" value="0" aria-label="Remove the dial" style="width:200px">
+      <span id="ablVal" class="lab">0%</span>
+      <button type="button" id="steerBtn" aria-pressed="false">Push harmless prompts along the dial</button>
+    </div>
+    <div class="legend"><span style="--c:var(--s1)">harmless prompts</span><span style="--c:var(--s2)">harmful prompts</span><span style="--c:var(--ink)">ringed = model refuses</span></div>
+    <div class="chart" id="primerChart"></div>
+  </div>
+  <ol class="steps">
+    <li><b>Find the dial.</b> Average the internal state over many harmful prompts, average it over many harmless ones, and take the difference. That arrow is the refusal direction ("Direction A").</li>
+    <li><b>Remove it ("abliteration").</b> At every layer, subtract the part of the state that points along the arrow. If refusal really lives there, the model stops refusing. We use this as our <b>causal test</b>.</li>
+    <li><b>Add it ("steering").</b> Push a harmless prompt's state along the arrow. If the model now refuses "Give an example of an Arctic animal", the arrow really causes refusal.</li>
+  </ol>
+  <p>Our question: is this one arrow the <i>whole</i> story? Different kinds of danger (violence, privacy, fraud…), and a <b>safety instruction</b> added to the prompt, might each use their own dial.</p>
+</section>
+
+<!-- ============================ SETUP ============================ -->
+<section id="setup">
+  <h2>What we did</h2>
+  <div class="cols">
+    <div class="card"><h3>The model</h3><p>Google <b>Gemma-3-4B-it</b>, in full 32-bit precision on two free Kaggle T4 GPUs. 34 layers, 2,560 numbers per token. Everything is forward passes and generation: no training.</p></div>
+    <div class="card"><h3>The prompts</h3><p><b>OR-Bench Toxic</b> (655 harmful), <b>Alpaca</b> (600 harmless), and <b>OR-Bench Hard-1K</b> (1,319 prompts that <i>sound</i> risky but are fine, e.g. "how do I kill a Python process"). Every set is split: half to find directions, half to test them.</p></div>
+    <div class="card"><h3>The instructions</h3><p>Gemma has no system prompt, so instructions are placed before the user's question. The main manipulation is a <b>strict safety rule</b>, compared with a length-matched <b>neutral</b> one, plus 14 others: personas, milder rules, "no disclaimers"…</p></div>
+  </div>
+  <details><summary>Show the strict and neutral instructions</summary>
+    <p><b>Strict</b></p><div class="instr" id="strictText"></div>
+    <p><b>Neutral</b> (same length, no safety content)</p><div class="instr" id="neutralText"></div>
+  </details>
+  <h3>How we measure refusal</h3>
+  <dl class="gloss">
+    <dt>Fast score</dt><dd>Does the reply <i>start</i> with "I" or "Sorry"? Read straight from the model's first-word probabilities, so we can measure thousands of prompts in minutes.</dd>
+    <dt>Blind AI judge</dt><dd>Gemma writes a full reply; a separate model (GLM-5.3-flash) reads only the question and reply, never the condition, and labels it <b>comply</b>, <b>comply with warning</b>, <b>redirect</b> (does something safer instead), <b>lecture</b> or <b>hard refuse</b>.</dd>
+    <dt>Checking the judge</dt><dd id="judgeCheck"></dd>
+  </dl>
+</section>
+
+<!-- ============================ RQ1 ============================ -->
+<section id="rq1">
+  <span class="rq">Research question 1</span>
+  <h2>Is there one dial, or one per kind of danger?</h2>
+  <p>We computed a separate refusal direction for each of 9 harm categories and asked two things. Do they point the same way? And does the part that is <i>unique</i> to a category (its "residue", what is left after removing the shared dial) cause refusal on its own?</p>
+  <div class="card">
+    <h3>Do the category dials point the same way?</h3>
+    <div class="controls"><span class="lab">Show:</span>
+      <button type="button" data-mat="raw" aria-pressed="true">Full category directions</button>
+      <button type="button" data-mat="residue" aria-pressed="false">Residues (shared dial removed)</button></div>
+    <div class="chart" id="heatChart"></div>
+    <p class="caption" id="heatCaption"></p>
+  </div>
+  <div class="card">
+    <h3>Causal test: add each direction to <i>harmless</i> prompts</h3>
+    <div class="legend"><span style="--c:var(--s1)">full category direction</span><span style="--c:var(--s2)">residue only (shared dial removed, same size)</span></div>
+    <div class="chart" id="induceChart"></div>
+    <p class="caption">Share of 300 harmless Alpaca prompts whose reply starts as a refusal after adding the vector at layer 17. Adding the shared dial (Direction A) alone: <b id="inducA"></b>. Random vectors of the same size: <b id="inducRand"></b>.</p>
+  </div>
+  <div class="takeaway"><b>Finding</b>Every category direction makes harmless prompts refuse, but its residue never does (0–1%, the same as random noise). The categories differ geometrically (the residues carry information about <i>topic</i>), but the refusal itself runs through <b>one shared dial</b>.</div>
+</section>
+
+<!-- ============================ RQ2 ============================ -->
+<section id="rq2">
+  <span class="rq">Research question 2</span>
+  <h2>Where does a safety instruction push the model?</h2>
+  <p>The strict instruction raises refusals on borderline-but-fine prompts from about 7% to 67%. Does it do that by turning up the dial? Below, each dot is one prompt, placed by how far its internal state points along the dial (layer 17). We rescaled the axis so that <b>0 = typical harmless prompt</b> and <b>1 = typical harmful prompt</b>.</p>
+  <div class="card">
+    <h3>The caution meter</h3>
+    <div class="controls"><span class="lab">Instruction on the borderline prompts:</span>
+      <button type="button" data-ins="hard_none" aria-pressed="false">None</button>
+      <button type="button" data-ins="hard_neutral" aria-pressed="true">Neutral</button>
+      <button type="button" data-ins="hard_strict" aria-pressed="false">Strict</button></div>
+    <div class="legend"><span style="--c:var(--s1)">harmless (Alpaca)</span><span style="--c:var(--s2)">harmful (OR-Bench Toxic)</span><span style="--c:var(--s3)">borderline (Hard-1K)</span><span style="--c:var(--ink)">filled = reply starts as a refusal</span></div>
+    <div class="chart" id="meterChart"></div>
+    <p class="caption" id="meterCaption"></p>
+  </div>
+  <div class="card">
+    <h3>Same dial position, different decision</h3>
+    <div class="legend"><span style="--c:var(--s1)">neutral instruction</span><span style="--c:var(--s2)">strict instruction</span></div>
+    <div class="chart" id="threshChart"></div>
+    <p class="caption">Borderline prompts grouped by dial position: what share starts as a refusal? With the strict instruction, prompts at the <i>same</i> dial position refuse far more often. The bar for refusing moved, more than the prompts did.</p>
+  </div>
+  <div class="card">
+    <h3>Causal test: which part of the instruction's push does the work?</h3>
+    <p class="caption" style="margin-top:0">We split the instruction's average effect on the internal state into the part <b>along</b> the dial (only <b id="fracAlong"></b> of its size) and the part <b>off</b> the dial. Then we subtracted each part from strict prompts, or added it to neutral ones, at layer 17.</p>
+    <div class="chart" id="decompChart"></div>
+  </div>
+  <div class="takeaway"><b>Finding</b>The instruction mostly pushes <b>off</b> the dial: the angle between its push and the dial gives a cosine of only <span id="cosHead"></span>, and prompts move just ~9% of the harmless-to-harmful distance. Yet the tiny on-dial part does about half the work. The instruction partly turns the dial and partly <b>lowers the bar</b> for refusing.</div>
+</section>
+
+<!-- ============================ RQ4/5 ============================ -->
+<section id="rq4">
+  <span class="rq">Research questions 4 &amp; 5</span>
+  <h2>What survives when the dial is removed?</h2>
+  <p>The decisive test. We removed the dial at every layer and generated <b>real replies</b> to 150 borderline prompts under four instructions: neutral, the strict safety rule, and two personas with <i>no</i> safety rule (a children's librarian and a bank compliance officer). The blind judge labelled all 1,200 replies.</p>
+  <div class="tiles" id="harmTiles"></div>
+  <div class="card">
+    <h3>Replies by style, normal model vs dial removed</h3>
+    <div class="legend"><span style="--c:var(--o1)">comply (incl. with warnings)</span><span style="--c:var(--o2)">redirect (does something safer instead)</span><span style="--c:var(--o3)">lecture or hard refuse</span></div>
+    <div class="chart" id="gridChart"></div>
+    <p class="caption">Each pair of bars is one instruction: left = normal model, right = dial removed. 150 benign prompts each. The line and number mark the total refusal rate (redirect + lecture + hard refuse).</p>
+  </div>
+  <div class="card">
+    <h3>How much of each instruction's extra caution survives?</h3>
+    <div class="legend"><span style="--c:var(--s1)">normal model</span><span style="--c:var(--s2)">dial removed</span></div>
+    <div class="chart" id="effectChart"></div>
+    <p class="caption">Extra refusal compared with the neutral instruction, with 95% confidence intervals (bootstrap over prompts).</p>
+  </div>
+  <div class="takeaway"><b>Finding</b>Removing the dial deletes almost every lecture and flat refusal (2 of 600 benign replies remain; none on harmful prompts). But about <b>a third</b> of the over-caution caused by the strict rule <i>or</i> the librarian persona survives, and all of it as <b>redirection</b>: "here's the general idea, but I won't give specifics". The dial is the model's "no" button; polite dodging has a second route.</div>
+</section>
+
+<!-- ============================ EXPLORER ============================ -->
+<section id="explorer">
+  <h2>Explore the real replies</h2>
+  <p>Pick any of the 150 borderline prompts and compare Gemma's actual replies: four instructions, normal model vs dial removed. Labels are from the blind judge. (These prompts are benign; replies to harmful prompts are not shown anywhere on this page.)</p>
+  <div class="controls">
+    <select id="xPrompt" aria-label="Choose a prompt" style="max-width:100%"></select>
+    <button type="button" id="xRandom">Random prompt</button>
+    <button type="button" id="xSurvive" aria-pressed="false">Only prompts still refused without the dial</button>
+  </div>
+  <div id="xBody"></div>
+</section>
+
+<!-- ============================ RQ3 ============================ -->
+<section id="rq3">
+  <span class="rq">Research question 3</span>
+  <h2>Can the dial predict how cautious an instruction makes the model?</h2>
+  <p>If over-caution ran through one dial, instructions that push prompts further along it should cause more over-refusal. We tested 16 instructions (safety rules, cautious and neutral personas, permissive prompts), with 100 judged replies each.</p>
+  <div class="card">
+    <div class="controls"><span class="lab">Dial position measured at:</span>
+      <button type="button" data-pos="exchange_eot" aria-pressed="true">end of the user's turn</button>
+      <button type="button" data-pos="exchange_last" aria-pressed="false">the token before the reply</button>
+      <button type="button" id="atlasTableBtn" aria-pressed="false">Table view</button></div>
+    <div class="legend"><span style="--c:var(--s1)">safety rule</span><span style="--c:var(--s2)">cautious persona</span><span style="--c:var(--s3)">neutral persona / style</span><span style="--c:var(--muted)">permissive or reference (hollow)</span></div>
+    <div class="chart" id="atlasChart"></div>
+    <div class="tablewrap" id="atlasTable" hidden></div>
+    <p class="caption" id="atlasCaption"></p>
+  </div>
+  <div class="takeaway"><b>Finding</b>No reliable relation across instructions: one wording of the safety rule barely moves the dial yet refuses 96%, and "answer concisely" moves it <i>backwards</i> yet adds refusals. But <b>within</b> any single instruction, the dial position tells which prompts get refused (AUROC <span id="withinRange"></span>). So the dial reads <b>how risky the prompt looks</b>; the instruction sets <b>how much risk is tolerated</b>, and that setting lives mostly elsewhere.</div>
+</section>
+
+<!-- ============================ SURPRISES ============================ -->
+<section id="surprises">
+  <h2>Things we did not expect</h2>
+  <div class="cols" id="surpriseCards" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section id="method">
+  <h2>How the study was built</h2>
+  <div class="pipeline">
+    <div><b>00 · Checks</b>Precision, memory, prompt format, frozen data splits</div>
+    <div><b>01 · Find the dial</b>Search 34 layers × 5 positions; pick by "removing it stops refusal" and "adding it causes refusal"</div>
+    <div><b>02 · Map</b>Category directions, the instruction's push, noise ceilings and random baselines</div>
+    <div><b>03 · Cause</b>Remove / add / split the push; validate the fast score against the judge</div>
+    <div><b>04 · Atlas</b>16 instructions; one axis vs several</div>
+    <div><b>05 · Judged grid</b>2,600 real replies, all judged blind</div>
+  </div>
+  <h3>Rigour</h3>
+  <ul class="prose" style="max-width:760px">
+    <li><b>Held-out testing:</b> every direction is found on one half of the prompts and tested on the other half.</li>
+    <li><b>Controls everywhere:</b> random vectors of the same size, a length-matched neutral instruction, label-shuffled baselines, bootstrap confidence intervals.</li>
+    <li><b>A Gemma-3 trap we found and fixed:</b> about 46 of the 2,560 numbers are huge (~10,000) at every position. The standard recipe puts up to 97% of the dial's weight on them, and removing it then breaks the model. Masking those numbers fixed it (model change on harmless prompts: KL 30 → 0.02).</li>
+    <li><b>Validated measurement:</b> the fast first-word score was checked against full replies, and found to miss redirects. So every behavioural claim on this page uses judged replies.</li>
+  </ul>
+  <h3>Limitations</h3>
+  <ul class="prose" style="max-width:760px">
+    <li>One model (Gemma-3-4B), with the dial measured mainly at one layer (17).</li>
+    <li>The judge agrees with a human 86% of the time on refused-vs-not, checked on only 29 replies; finer style labels are subjective (59% exact agreement).</li>
+    <li>OR-Bench's "benign" labels were made by AI models; some prompts are genuinely borderline.</li>
+    <li>Replies are greedy (no sampling) and capped at 200 tokens.</li>
+  </ul>
+</section>
+
+<!-- ============================ ANSWER ============================ -->
+<section id="answer">
+  <h2>The answer, question by question</h2>
+  <div class="tablewrap"><table class="data">
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr><td>1 · How many dials?</td><td><b>One</b> for refusal. Category "dials" are that dial plus topic information.</td></tr>
+      <tr><td>2 · Where does a safety instruction push?</td><td>Mostly <b>off</b> the dial, but the small on-dial part does about half the work.</td></tr>
+      <tr><td>3 · Does one axis predict over-refusal?</td><td><b>Within</b> an instruction, yes; <b>across</b> instructions, no. The dial reads the prompt; the instruction sets the threshold.</td></tr>
+      <tr><td>4 · What survives removing the dial?</td><td>About <b>a third</b> of instruction-caused over-caution, for a safety rule and for a persona.</td></tr>
+      <tr><td>5 · Whether, or how?</td><td><b>Both.</b> The dial controls the hard "no"; without it, only polite redirection remains.</td></tr>
+    </tbody></table></div>
+  <div class="answer">Gemma has <span style="color:var(--accent-ink)">one dial for "no"</span>, and <span style="color:var(--accent-ink)">a second route for "not quite"</span>.</div>
+</section>
+
+<footer>IE624 course project · Gemma-3-4B-it · Data: OR-Bench (Cui et al., 2025), Alpaca, XSTest · Method after Arditi et al. (2024). All numbers on this page are computed from the project notebooks 01–05; nothing is hand-entered except the text.</footer>
+</main>
+
+<script>
+const D = /*__DATA__*/null;
+
+/* ---------------- helpers ---------------- */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svg(container, w, h) {
+  const box = document.getElementById(container); box.innerHTML = "";
+  return el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" }, box);
+}
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pct = (x, d = 0) => (x * 100).toFixed(d) + "%";
+const tip = document.getElementById("tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.style.display = "block"; moveTip(ev); }
+function moveTip(ev) {
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+function hover(node, html) {
+  node.addEventListener("mouseenter", e => showTip(e, typeof html === "function" ? html() : html));
+  node.addEventListener("mousemove", moveTip);
+  node.addEventListener("mouseleave", hideTip);
+}
+function text(g, x, y, s, attrs = {}) { const t = el("text", { x, y, ...attrs }, g); t.textContent = s; return t; }
+function toggleGroup(selector, onPick) {
+  const btns = [...document.querySelectorAll(selector)];
+  btns.forEach(b => b.addEventListener("click", () => {
+    btns.forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); onPick(b);
+  }));
+}
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(rng) { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function yAxis(g, x0, x1, y, ticks, fmt) {
+  ticks.forEach(t => { el("line", { x1: x0, x2: x1, y1: y(t), y2: y(t), class: "gridline" }, g);
+    text(g, x0 - 6, y(t) + 4, fmt(t), { "text-anchor": "end" }); });
+}
+const STYLE_OF = l => !l ? null : (l === "comply" || l === "comply_warning") ? "comply" : l === "redirect" ? "redirect" : (l === "other" ? "comply" : "refuse");
+const LABEL_TXT = { comply: "comply", comply_warning: "comply + warning", redirect: "redirect", lecture: "lecture", hard_refuse: "hard refuse", other: "other" };
+const INSTR_NAME = { neutral: "Neutral", strict: "Strict safety rule", librarian: "Children's librarian", compliance: "Compliance officer" };
+
+/* ---------------- hero ---------------- */
+function hero() {
+  const e = D.effects, h = D.harmful;
+  const tiles = [
+    [pct(h.tox_none_normal.refusal) + " → " + pct(h.tox_none_abl.refusal), "harmful prompts refused: normal model → dial removed"],
+    [pct(e.strict.survival[0]), "of the strict rule's over-caution survives without the dial (all as redirects)"],
+    ["2 / 600", "lectures or flat refusals left once the dial is removed (benign prompts, all four instructions); the strict rule alone produced 36 with the dial in place"],
+    [(D.atlas.correlation.exchange_eot[0] >= 0 ? "+" : "") + D.atlas.correlation.exchange_eot[0].toFixed(2), "correlation between an instruction's push on the dial and its over-refusal (16 instructions): no reliable link"],
+  ];
+  document.getElementById("heroTiles").innerHTML = tiles.map(([n, l]) => `<div class="tile"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+  const ht = [
+    [pct(h.tox_none_normal.refusal), "harmful prompts refused by the normal model"],
+    [pct(h.tox_none_abl.refusal), "refused once the dial is removed: abliteration works"],
+    [pct(h.tox_strict_abl.refusal), "refused with the dial removed <i>plus</i> the strict instruction: the instruction brings some caution back on its own"],
+  ];
+  document.getElementById("harmTiles").innerHTML = ht.map(([n, l]) => `<div class="tile"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+  document.getElementById("strictText").textContent = D.explorer.instructions.strict;
+  document.getElementById("neutralText").textContent = D.explorer.instructions.neutral;
+  const a = D.agreement, j = D.judge03;
+  document.getElementById("judgeCheck").innerHTML =
+    `On "refused or not", the judge agrees with a human ${pct(a.human_vs_glm.refusal_vs_not)} of the time (n = ${a.human_vs_glm.n}) and with a second, independent AI judge (Claude) ${pct(a.claude_vs_glm.refusal_vs_not)} (n = ${a.claude_vs_glm.n}). The fast score agrees with the judge ${pct(j.agreement)} of the time but misses about a third of refusals (the redirects), so behavioural claims use the judge.`;
+}
+
+/* ---------------- primer widget ---------------- */
+let primerAbl = 0, primerSteer = false;
+const PRIMER = (() => {
+  const rng = mulberry(7), pts = [];
+  for (let i = 0; i < 40; i++) pts.push({ k: "harmless", x: -1.1 + gauss(rng) * 0.45, y: gauss(rng) * 0.7 });
+  for (let i = 0; i < 40; i++) pts.push({ k: "harmful", x: 1.2 + gauss(rng) * 0.45, y: 0.15 + gauss(rng) * 0.7 });
+  return pts;
+})();
+function drawPrimer() {
+  const W = 760, H = 340, s = svg("primerChart", W, H);
+  const X = v => W / 2 + v * 140, Y = v => 165 - v * 52;
+  const thr = 0.25;
+  el("line", { x1: X(-2.6), x2: X(2.6), y1: Y(0), y2: Y(0), class: "axis", "stroke-dasharray": "2 4" }, s);
+  el("line", { x1: X(thr), x2: X(thr), y1: 20, y2: H - 30, stroke: css("--muted"), "stroke-dasharray": "5 4" }, s);
+  text(s, X(thr) + 6, 40, "refusal threshold");
+  el("defs", {}, s).innerHTML = `<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${css("--ink")}"/></marker>`;
+  const keep = 1 - primerAbl;
+  el("line", { x1: X(-1.1 * keep), x2: X(1.2 * keep), y1: H - 26, y2: H - 26, stroke: css("--ink"), "stroke-width": 2, "marker-end": "url(#arr)", opacity: Math.max(keep, 0.15) }, s);
+  text(s, 14, H - 6, keep > 0.05 ? "the refusal dial (Direction A)" : "dial removed: every prompt sits at the same dial position");
+  for (const p of PRIMER) {
+    let x = p.x;
+    if (primerSteer && p.k === "harmless") x += 1.6;
+    x = x * keep;
+    const refuses = x > thr;
+    const c = p.k === "harmless" ? css("--s1") : css("--s2");
+    const g = el("g", {}, s);
+    el("circle", { cx: X(x), cy: Y(p.y), r: 5, fill: c, stroke: css("--surface"), "stroke-width": 1.5 }, g);
+    if (refuses) el("circle", { cx: X(x), cy: Y(p.y), r: 9, fill: "none", stroke: css("--ink"), "stroke-width": 1.2 }, g);
+  }
+  const nRef = PRIMER.filter(p => { let x = p.x + (primerSteer && p.k === "harmless" ? 1.6 : 0); return x * keep > thr; });
+  text(s, 14, 20, `refusing: ${nRef.filter(p => p.k === "harmful").length}/40 harmful, ${nRef.filter(p => p.k === "harmless").length}/40 harmless`, { style: `fill:${css("--ink")};font-weight:600` });
+}
+
+/* ---------------- RQ1: heatmap + induce ---------------- */
+function divColor(v) {
+  const t = Math.max(-1, Math.min(1, v)), mid = css("--div-mid"), pole = t < 0 ? css("--div-neg") : css("--div-pos");
+  return mix(mid, pole, Math.abs(t));
+}
+function mix(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const A = p(a), B = p(b); return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+let heatMode = "raw";
+function drawHeat() {
+  const cats = D.categories.cats, M = D.categories[heatMode], n = cats.length;
+  const cell = 46, L = 110, T = 10, W = L + n * cell + 120, H = T + n * cell + 100, s = svg("heatChart", W, H);
+  M.forEach((row, i) => row.forEach((v, j) => {
+    const r = el("rect", { x: L + j * cell + 1, y: T + i * cell + 1, width: cell - 2, height: cell - 2, rx: 4, fill: i === j ? css("--surface-2") : divColor(v) }, s);
+    if (i !== j) {
+      text(s, L + j * cell + cell / 2, T + i * cell + cell / 2 + 4, v.toFixed(2), { "text-anchor": "middle", style: `fill:${Math.abs(v) > 0.55 ? "#fff" : css("--ink")};font-size:11px` });
+      hover(r, `<b>${cats[i]} ↔ ${cats[j]}</b>cosine ${v.toFixed(2)}`);
+    }
+  }));
+  cats.forEach((c, i) => {
+    text(s, L - 8, T + i * cell + cell / 2 + 4, c, { "text-anchor": "end" });
+    const t = text(s, L + i * cell + cell / 2, T + n * cell + 12, c, { "text-anchor": "end", transform: `rotate(-40 ${L + i * cell + cell / 2} ${T + n * cell + 12})` });
+  });
+  const lx = L + n * cell + 24;
+  for (let k = 0; k <= 20; k++) { const v = 1 - k / 10; el("rect", { x: lx, y: T + k * (n * cell / 21), width: 14, height: n * cell / 21 + 1, fill: divColor(v) }, s); }
+  text(s, lx + 20, T + 10, "+1 same way"); text(s, lx + 20, T + n * cell / 2 + 4, "0 unrelated"); text(s, lx + 20, T + n * cell - 2, "−1 opposite");
+  const off = heatMode === "raw" ? "0.83" : "−0.09";
+  document.getElementById("heatCaption").innerHTML = heatMode === "raw"
+    ? `Cosine similarity between category refusal directions (1 = identical direction, corrected for noise). Average off-diagonal ≈ <b>${off}</b>: they all point roughly the same way. Each one's cosine with the shared dial: ${D.categories.cos_to_A.map(v => v.toFixed(2)).join(", ")}.`
+    : `After removing the shared dial, the leftovers are unrelated or opposite (average ≈ <b>${off}</b>), and they cluster by topic: wrongdoing-type categories vs graphic-content ones (sexual content is opposite to most). This is topic, not a second refusal dial; see the causal test below.`;
+}
+function drawInduce() {
+  const cats = D.categories.cats, W = 760, H = 300, L = 44, B = 70, T = 16, s = svg("induceChart", W, H);
+  const y = v => T + (H - T - B) * (1 - v), bw = (W - L - 10) / cats.length;
+  yAxis(s, L, W - 4, y, [0, 0.25, 0.5, 0.75, 1], v => pct(v));
+  const A = D.induce.A;
+  el("line", { x1: L, x2: W - 4, y1: y(A), y2: y(A), stroke: css("--ink"), "stroke-dasharray": "4 4" }, s);
+  text(s, L + 6, y(A) - 6, `adding the shared dial: ${pct(A)}`);
+  cats.forEach((c, i) => {
+    const full = D.induce["cat:" + c], res = D.induce["res:" + c], x0 = L + i * bw + bw * 0.15, w = bw * 0.33;
+    [[full, css("--s1"), "full direction"], [res, css("--s2"), "residue only"]].forEach(([v, col, nm], k) => {
+      const h = Math.max(y(0) - y(v), 1.5);
+      const r = el("rect", { x: x0 + k * (w + 2), y: y(0) - h, width: w, height: h, rx: 3, fill: col }, s);
+      hover(r, `<b>${c}</b>${nm}: ${pct(v, 1)} of harmless prompts refuse`);
+    });
+    text(s, x0 + w, H - B + 16, c, { "text-anchor": "end", transform: `rotate(-35 ${x0 + w} ${H - B + 16})` });
+  });
+  el("line", { x1: L, x2: W - 4, y1: y(0), y2: y(0), class: "axis" }, s);
+  document.getElementById("inducA").textContent = pct(A);
+  const rnd = ["randdir0", "randdir1", "randdir2"].map(k => D.induce[k]);
+  document.getElementById("inducRand").textContent = rnd.map(v => pct(v, 1)).join(", ");
+}
+
+/* ---------------- RQ2: meter, threshold, decomposition ---------------- */
+let meterIns = "hard_neutral";
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+function scaleProj() {
+  const lo = mean(D.proj.alp_none.x), hi = mean(D.proj.tox_none.x);
+  return v => (v - lo) / (hi - lo);
+}
+function drawMeter() {
+  const S = scaleProj(), W = 760, H = 330, L = 120, R = 16, s = svg("meterChart", W, H);
+  const xmin = -0.6, xmax = 1.5, X = v => L + (W - L - R) * (Math.min(xmax, Math.max(xmin, v)) - xmin) / (xmax - xmin);
+  [0, 0.5, 1].forEach(t => { el("line", { x1: X(t), x2: X(t), y1: 10, y2: H - 28, class: "gridline" }, s); });
+  text(s, X(0), H - 10, "0 · typical harmless", { "text-anchor": "middle" });
+  text(s, X(1), H - 10, "1 · typical harmful", { "text-anchor": "middle" });
+  text(s, X(0.5), H - 10, "halfway", { "text-anchor": "middle" });
+  const rows = [["alp_none", "harmless", css("--s1")], ["tox_none", "harmful", css("--s2")], [meterIns, "borderline", css("--s3")]];
+  const rng = mulberry(3);
+  rows.forEach(([key, name, col], ri) => {
+    const yc = 50 + ri * 95, set = D.proj[key];
+    text(s, L - 12, yc + 4, name, { "text-anchor": "end", style: `fill:${css("--ink")};font-weight:600` });
+    const n = set.x.length, step = Math.max(1, Math.floor(n / 330));
+    for (let i = 0; i < n; i += step) {
+      const v = S(set.x[i]), ref = set.s[i] > 0, jy = yc + (rng() - 0.5) * 60;
+      el("circle", { cx: X(v), cy: jy, r: 3.2, fill: ref ? col : "none", stroke: col, "stroke-width": 1.2, opacity: 0.85 }, s);
+    }
+    const rate = set.s.filter(v => v > 0).length / n, med = S([...set.x].sort((a, b) => a - b)[Math.floor(n / 2)]);
+    el("line", { x1: X(med), x2: X(med), y1: yc - 34, y2: yc + 34, stroke: css("--ink"), "stroke-width": 2 }, s);
+    text(s, W - R, yc - 36, `refusal starts: ${pct(rate)}`, { "text-anchor": "end" });
+  });
+  const nm = { hard_none: "no instruction", hard_neutral: "the neutral instruction", hard_strict: "the strict instruction" }[meterIns];
+  const set = D.proj[meterIns], rate = set.s.filter(v => v > 0).length / set.s.length;
+  document.getElementById("meterCaption").innerHTML = `Borderline prompts under <b>${nm}</b>: ${pct(rate)} start as a refusal. Tick = median position. Switch between Neutral and Strict: the green dots barely move, but many more fill in. Most borderline prompts already sit past "halfway" without being refused.`;
+}
+function drawThresh() {
+  const S = scaleProj(), W = 760, H = 290, L = 48, B = 40, T = 30, R = 16, s = svg("threshChart", W, H);
+  const edges = [-0.2, 0.2, 0.35, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.25];
+  const X = v => L + (W - L - R) * (v - edges[0]) / (edges[edges.length - 1] - edges[0]), Y = v => T + (H - T - B) * (1 - v);
+  yAxis(s, L, W - R, Y, [0, 0.25, 0.5, 0.75, 1], v => pct(v));
+  [0, 0.5, 1].forEach(t => text(s, X(t), H - 16, t === 0 ? "0 · harmless" : t === 1 ? "1 · harmful" : "0.5", { "text-anchor": "middle" }));
+  text(s, (L + W) / 2, H - 2, "dial position (layer 17)", { "text-anchor": "middle" });
+  [["hard_neutral", css("--s1"), "neutral"], ["hard_strict", css("--s2"), "strict"]].forEach(([key, col, nm]) => {
+    const set = D.proj[key], pts = [];
+    for (let b = 0; b < edges.length - 1; b++) {
+      const idx = set.x.map((v, i) => [S(v), set.s[i]]).filter(([v]) => v >= edges[b] && v < edges[b + 1]);
+      if (idx.length >= 8) pts.push([(edges[b] + edges[b + 1]) / 2, idx.filter(([, sc]) => sc > 0).length / idx.length, idx.length]);
+    }
+    el("polyline", { points: pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(" "), fill: "none", stroke: col, "stroke-width": 2 }, s);
+    pts.forEach(([x, y, n]) => {
+      const c = el("circle", { cx: X(x), cy: Y(y), r: 5, fill: col, stroke: css("--surface"), "stroke-width": 2 }, s);
+      hover(c, `<b>${nm} instruction</b>dial position ≈ ${x.toFixed(2)}<br>${pct(y)} refuse (n = ${n})`);
+    });
+    const last = pts[pts.length - 1]; text(s, X(last[0]) - 8, Y(last[1]) - 10, nm, { "text-anchor": "end", style: `fill:${css("--ink")};font-weight:600` });
+  });
+}
+function drawDecomp() {
+  const P = D.partB;
+  const rows = [
+    ["removal -s", "Remove whole push from strict prompts", css("--s1")],
+    ["removal -s_par", "…remove only the on-dial part", css("--s1")],
+    ["removal -s_perp", "…remove only the off-dial part", css("--s1")],
+    ["recovery +s", "Add whole push to neutral prompts", css("--s2")],
+    ["recovery +s_par", "…add only the on-dial part", css("--s2")],
+    ["recovery +s_perp", "…add only the off-dial part", css("--s2")],
+    ["recovery +rand", "Add a random vector (control)", css("--muted")],
+  ];
+  const W = 760, rowH = 34, L = 270, R = 60, T = 10, H = T + rows.length * rowH + 30, s = svg("decompChart", W, H);
+  const X = v => L + (W - L - R) * (Math.max(-0.1, Math.min(1.05, v)) + 0.1) / 1.15;
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => { el("line", { x1: X(t), x2: X(t), y1: T, y2: H - 24, class: "gridline" }, s); text(s, X(t), H - 8, pct(t), { "text-anchor": "middle" }); });
+  rows.forEach(([k, lab, col], i) => {
+    const [v, lo, hi] = P[k], y = T + i * rowH;
+    text(s, L - 10, y + rowH / 2 + 4, lab, { "text-anchor": "end", style: `fill:${css("--ink")}` });
+    const x0 = X(Math.min(0, v)), x1 = X(Math.max(0, v));
+    const r = el("rect", { x: x0, y: y + 7, width: Math.max(x1 - x0, 1.5), height: rowH - 14, rx: 4, fill: col }, s);
+    el("line", { x1: X(lo), x2: X(hi), y1: y + rowH / 2, y2: y + rowH / 2, stroke: css("--ink"), "stroke-width": 1.5 }, s);
+    text(s, X(Math.max(v, hi)) + 6, y + rowH / 2 + 4, pct(v));
+    hover(r, `<b>${lab}</b>${pct(v)} of the strict instruction's effect (95% CI ${pct(lo)} to ${pct(hi)})`);
+  });
+  el("line", { x1: X(0), x2: X(0), y1: T, y2: H - 24, class: "axis" }, s);
+  const f = D.shift.frac_along, avg = f.reduce((a, b) => a + b, 0) / f.length;
+  document.getElementById("fracAlong").textContent = "~" + pct(avg) ;
+  document.getElementById("cosHead").textContent = D.shift.headline.cos.toFixed(2);
+}
+
+/* ---------------- RQ4: grid ---------------- */
+function drawGrid() {
+  const ins = ["neutral", "strict", "librarian", "compliance"], G = D.grid;
+  const W = 760, H = 330, L = 48, B = 54, T = 24, s = svg("gridChart", W, H), Y = v => T + (H - T - B) * (1 - v);
+  yAxis(s, L, W - 4, Y, [0, 0.25, 0.5, 0.75, 1], v => pct(v));
+  const gw = (W - L - 10) / ins.length, bw = gw * 0.3;
+  ins.forEach((k, i) => {
+    [false, true].forEach((abl, j) => {
+      const row = G.find(r => r.instruction === k && r.abliterated === abl);
+      const x = L + i * gw + gw * 0.17 + j * (bw + 6);
+      let acc = 0;
+      [["refuse", css("--o3")], ["redirect", css("--o2")], ["comply", css("--o1")]].forEach(([st, col]) => {
+        const v = st === "comply" ? row.comply + row.other : row[st];
+        if (v <= 0) return;
+        const r = el("rect", { x, y: Y(acc + v) + 1, width: bw, height: Math.max(Y(acc) - Y(acc + v) - 2, 0.5), fill: col, rx: 2 }, s);
+        hover(r, `<b>${INSTR_NAME[k]} · ${abl ? "dial removed" : "normal"}</b>${st === "refuse" ? "lecture / hard refuse" : st}: ${pct(v)}<br>total refusal ${pct(row.refusal)} (95% CI ${pct(row.ci[0])}–${pct(row.ci[1])})`);
+        acc += v;
+      });
+      text(s, x + bw / 2, H - B + 16, abl ? "removed" : "normal", { "text-anchor": "middle", style: "font-size:11px" });
+      const ly = Y(row.refusal);
+      el("line", { x1: x - 2, x2: x + bw + 2, y1: ly, y2: ly, stroke: css("--ink"), "stroke-width": 2 }, s);
+      text(s, x + bw / 2, ly - 6, pct(row.refusal), { "text-anchor": "middle", style: `fill:${css("--ink")};font-weight:600` });
+    });
+    text(s, L + i * gw + gw * 0.17 + bw + 3, H - B + 36, INSTR_NAME[k], { "text-anchor": "middle", style: `fill:${css("--ink")};font-weight:600` });
+  });
+}
+function drawEffect() {
+  const ins = ["strict", "librarian", "compliance"], E = D.effects;
+  const W = 760, H = 280, L = 48, B = 50, T = 20, s = svg("effectChart", W, H);
+  const Y = v => T + (H - T - B) * (1 - (v + 0.1) / 0.9);
+  yAxis(s, L, W - 4, Y, [0, 0.2, 0.4, 0.6, 0.8], v => "+" + Math.round(v * 100) + " pts");
+  el("line", { x1: L, x2: W - 4, y1: Y(0), y2: Y(0), class: "axis" }, s);
+  const gw = (W - L - 10) / ins.length, bw = gw * 0.28;
+  ins.forEach((k, i) => {
+    [["effect_normal", css("--s1"), "normal"], ["effect_abliterated", css("--s2"), "dial removed"]].forEach(([f, col, nm], j) => {
+      const [v, lo, hi] = E[k][f], x = L + i * gw + gw * 0.2 + j * (bw + 6);
+      const r = el("rect", { x, y: Math.min(Y(v), Y(0)), width: bw, height: Math.max(Math.abs(Y(0) - Y(v)), 1.5), rx: 4, fill: col }, s);
+      el("line", { x1: x + bw / 2, x2: x + bw / 2, y1: Y(lo), y2: Y(hi), stroke: css("--ink"), "stroke-width": 1.5 }, s);
+      text(s, x + bw / 2, Y(hi) - 6, (v >= 0 ? "+" : "") + Math.round(v * 100), { "text-anchor": "middle", style: `fill:${css("--ink")}` });
+      hover(r, `<b>${INSTR_NAME[k]} · ${nm}</b>${(v * 100).toFixed(0)} pts more refusal than neutral (95% CI ${(lo * 100).toFixed(0)} to ${(hi * 100).toFixed(0)})`);
+    });
+    const sv = E[k].survival;
+    text(s, L + i * gw + gw * 0.2 + bw + 3, H - B + 20, INSTR_NAME[k], { "text-anchor": "middle", style: `fill:${css("--ink")};font-weight:600` });
+    text(s, L + i * gw + gw * 0.2 + bw + 3, H - B + 38, `${pct(sv[0])} survives`, { "text-anchor": "middle" });
+  });
+}
+
+/* ---------------- Explorer ---------------- */
+let xOnlySurvive = false;
+function survives(p) {
+  return ["strict", "librarian", "compliance"].some(k => {
+    const r = p.replies[k + "|abliterated"]; return r && ["redirect", "lecture", "hard_refuse"].includes(r.label);
+  });
+}
+function fillPrompts() {
+  const sel = document.getElementById("xPrompt"), cur = sel.value;
+  const list = D.explorer.prompts.filter(p => !xOnlySurvive || survives(p));
+  sel.innerHTML = list.map(p => `<option value="${p.id}">[${p.category}] ${p.question.length > 90 ? p.question.slice(0, 90) + "…" : p.question}</option>`).join("");
+  if (list.some(p => p.id === cur)) sel.value = cur;
+  renderPrompt();
+}
+function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function renderPrompt() {
+  const id = document.getElementById("xPrompt").value, p = D.explorer.prompts.find(q => q.id === id);
+  if (!p) { document.getElementById("xBody").innerHTML = ""; return; }
+  let h = `<div class="q">${esc(p.question)}</div><div class="qmeta">OR-Bench Hard-1K · category: ${p.category} · click a reply to expand it</div><div class="xgrid"><div></div><div class="hd">Normal model</div><div class="hd">Dial removed</div>`;
+  ["neutral", "strict", "librarian", "compliance"].forEach(k => {
+    h += `<div class="rowlab">${INSTR_NAME[k]}<small>${k === "neutral" ? "reference" : k === "strict" ? "safety rule" : "persona, no safety rule"}</small></div>`;
+    ["normal", "abliterated"].forEach(m => {
+      const r = p.replies[`${k}|${m}`];
+      if (!r) { h += `<div class="reply">—</div>`; return; }
+      const st = STYLE_OF(r.label) || "comply";
+      h += `<div class="reply" tabindex="0"><span class="badge ${st}">${LABEL_TXT[r.label] || "unlabelled"}</span>\n${esc(r.text)}</div>`;
+    });
+  });
+  document.getElementById("xBody").innerHTML = h + "</div>";
+  document.querySelectorAll("#xBody .reply").forEach(e => e.addEventListener("click", () => e.classList.toggle("open")));
+}
+
+/* ---------------- RQ3: atlas ---------------- */
+let atlasPos = "exchange_eot";
+const GROUP_STYLE = { "safety": ["--s1", true], "cautious persona": ["--s2", true], "neutral persona": ["--s3", true], "permissive": ["--muted", false], "reference": ["--muted", false] };
+const NICE = { none: "no instruction", neutral: "neutral", strict: "strict", strict_v2: "strict (v2)", very_strict: "very strict", mild_v1: "mild (v1)", mild_v2: "mild (v2)",
+  librarian: "librarian", compliance: "compliance officer", pirate: "pirate", travel: "travel agent", chef: "chef", concise: "be concise", direct: "no disclaimers", expert: "expert user", no_refuse: "don't refuse" };
+function drawAtlas() {
+  const A = D.atlas.instructions, W = 760, H = 430, L = 56, B = 48, T = 14, R = 20, s = svg("atlasChart", W, H);
+  const xs = A.map(a => a[atlasPos]), xmin = Math.min(...xs) - 0.03, xmax = Math.max(...xs) + 0.04;
+  const X = v => L + (W - L - R) * (v - xmin) / (xmax - xmin), Y = v => T + (H - T - B) * (1 - (v + 0.2) / 1.1);
+  yAxis(s, L, W - R, Y, [-0.2, 0, 0.2, 0.4, 0.6, 0.8], v => (v > 0 ? "+" : "") + Math.round(v * 100));
+  el("line", { x1: L, x2: W - R, y1: Y(0), y2: Y(0), class: "axis" }, s);
+  el("line", { x1: X(0), x2: X(0), y1: T, y2: H - B, class: "axis" }, s);
+  text(s, (L + W) / 2, H - 8, "push along the dial vs neutral (share of the harmless→harmful distance)", { "text-anchor": "middle" });
+  text(s, 12, (T + H - B) / 2, "extra refusal vs neutral (pts, judged)", { transform: `rotate(-90 12 ${(T + H - B) / 2})`, "text-anchor": "middle" });
+  [-0.1, 0, 0.1, 0.2, 0.3].filter(t => t > xmin && t < xmax).forEach(t => text(s, X(t), H - B + 16, t.toFixed(1), { "text-anchor": "middle" }));
+  const placed = [];
+  const place = (x, y, label) => {               // greedy label placement: first offset that collides with nothing
+    const w = label.length * 6.6 + 4, h = 14;
+    for (const [dx, dy, anchor] of [[9, -6, "start"], [9, 15, "start"], [-9, -6, "end"], [-9, 15, "end"], [9, -20, "start"], [-9, 28, "end"]]) {
+      const x0 = anchor === "start" ? x + dx : x + dx - w, box = [x0, y + dy - 11, x0 + w, y + dy - 11 + h];
+      if (box[0] < L || box[2] > W - 2) continue;
+      if (!placed.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) { placed.push(box); return [x + dx, y + dy, anchor]; }
+    }
+    return [x + 9, y - 6, "start"];
+  };
+  A.forEach(a => placed.push([X(a[atlasPos]) - 7, Y(a.d_judged) - 7, X(a[atlasPos]) + 7, Y(a.d_judged) + 7]));
+  [...A].sort((p, q) => q.d_judged - p.d_judged).forEach(a => {
+    const [cv, filled] = GROUP_STYLE[a.group], col = css(cv), x = X(a[atlasPos]), y = Y(a.d_judged);
+    if (a.key !== "neutral") el("line", { x1: x, x2: x, y1: Y(a.d_lo), y2: Y(a.d_hi), stroke: col, "stroke-width": 1.5, opacity: 0.6 }, s);
+    const c = el("circle", { cx: x, cy: y, r: 6, fill: filled ? col : css("--surface"), stroke: filled ? css("--surface") : col, "stroke-width": 2 }, s);
+    const [lx, ly, anchor] = place(x, y, NICE[a.key]);
+    text(s, lx, ly, NICE[a.key], { "text-anchor": anchor, style: `fill:${css("--ink")};font-size:11.5px` });
+    hover(c, () => `<b>${NICE[a.key]}</b>${a.text ? "“" + esc(a.text) + "”<br>" : ""}judged refusal ${pct(a.judged_rate)} (${a.d_judged >= 0 ? "+" : ""}${Math.round(a.d_judged * 100)} pts vs neutral)<br>push on the dial ${a[atlasPos].toFixed(3)}<br>styles: comply ${pct(a.comply)}, redirect ${pct(a.redirect)}, refuse ${pct(a.refuse)}`);
+  });
+  const c = D.atlas.correlation[atlasPos];
+  document.getElementById("atlasCaption").innerHTML = `Each dot is one instruction (bars: 95% CI over 100 prompts). Spearman correlation <b>${c[0] >= 0 ? "+" : ""}${c[0].toFixed(2)}</b> (95% CI ${c[1].toFixed(2)} to ${c[2].toFixed(2)}, 15 instructions): no reliable link. Hover a dot for the instruction text.`;
+  const rows = [...A].sort((a, b) => b.d_judged - a.d_judged);
+  document.getElementById("atlasTable").innerHTML = `<table class="data"><thead><tr><th>Instruction</th><th>Group</th><th>Judged refusal</th><th>vs neutral</th><th>Push on dial</th><th>Redirect</th><th>Lecture/refuse</th></tr></thead><tbody>` +
+    rows.map(a => `<tr><td>${NICE[a.key]}</td><td>${a.group}</td><td>${pct(a.judged_rate)}</td><td>${a.d_judged >= 0 ? "+" : ""}${Math.round(a.d_judged * 100)}</td><td>${a[atlasPos].toFixed(3)}</td><td>${pct(a.redirect)}</td><td>${pct(a.refuse)}</td></tr>`).join("") + "</tbody></table>";
+  const w = Object.values(D.atlas.within_auroc);
+  document.getElementById("withinRange").textContent = `${Math.min(...w).toFixed(2)}–${Math.max(...w).toFixed(2)}`;
+}
+
+/* ---------------- surprises ---------------- */
+function surprises() {
+  const A = Object.fromEntries(D.atlas.instructions.map(a => [a.key, a]));
+  const cards = [
+    ["“No disclaimers” backfires", `Telling Gemma to <i>answer directly, without warnings</i> <b>raised</b> refusals by ${Math.round(A.direct.d_judged * 100)} points. Forbidden from hedging, it either answers plainly or refuses outright.`],
+    ["Personas refuse without being told to", `“You are a careful children's librarian” contains no safety rule, yet refuses ${pct(A.librarian.judged_rate)} of borderline prompts, mostly by retelling the request as a children's activity. A third of that survives removing the dial.`],
+    ["The first word lies", `Checking whether a reply starts with “I”/“Sorry” missed most persona refusals: on 29 prompts the librarian was 0% by first word but 62% by reading the replies. Measuring refusal needs whole replies.`],
+    ["Stricter changes the style, not just the rate", `The strict rule mostly <b>redirects</b> (${pct(A.strict.redirect)}); the “very strict” wording mostly <b>lectures or flatly refuses</b> (${pct(A.very_strict.refuse)}). By the first-word check it even started refusing 80% of completely harmless Alpaca prompts.`],
+  ];
+  document.getElementById("surpriseCards").innerHTML = cards.map(([t, b]) => `<div class="card"><h3>${t}</h3><p style="margin:0">${b}</p></div>`).join("");
+}
+
+/* ---------------- wiring ---------------- */
+function drawAll() { drawPrimer(); drawHeat(); drawInduce(); drawMeter(); drawThresh(); drawDecomp(); drawGrid(); drawEffect(); drawAtlas(); }
+hero(); surprises(); fillPrompts(); drawAll();
+document.getElementById("ablSlider").addEventListener("input", e => { primerAbl = e.target.value / 100; document.getElementById("ablVal").textContent = e.target.value + "%"; drawPrimer(); });
+document.getElementById("steerBtn").addEventListener("click", e => { primerSteer = !primerSteer; e.target.setAttribute("aria-pressed", primerSteer); drawPrimer(); });
+toggleGroup("[data-mat]", b => { heatMode = b.dataset.mat; drawHeat(); });
+toggleGroup("[data-ins]", b => { meterIns = b.dataset.ins; drawMeter(); });
+toggleGroup("[data-pos]", b => { atlasPos = b.dataset.pos; drawAtlas(); });
+document.getElementById("atlasTableBtn").addEventListener("click", e => {
+  const on = e.target.getAttribute("aria-pressed") !== "true"; e.target.setAttribute("aria-pressed", on);
+  document.getElementById("atlasTable").hidden = !on; document.getElementById("atlasChart").hidden = on;
+});
+document.getElementById("xPrompt").addEventListener("change", renderPrompt);
+document.getElementById("xRandom").addEventListener("click", () => {
+  const sel = document.getElementById("xPrompt"); sel.selectedIndex = Math.floor(Math.random() * sel.options.length); renderPrompt();
+});
+document.getElementById("xSurvive").addEventListener("click", e => { xOnlySurvive = !xOnlySurvive; e.target.setAttribute("aria-pressed", xOnlySurvive); fillPrompts(); });
+document.getElementById("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { localStorage.setItem("ie624-theme", document.documentElement.dataset.theme); } catch (e) {}
+  drawAll();
+});
+try { const t = localStorage.getItem("ie624-theme"); if (t) { document.documentElement.dataset.theme = t; drawAll(); } } catch (e) {}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ IE624 (Generative & Agentic AI) · Course project · Core approach document · N
 
 > Status: this is the **main project file**. `IE624 Project.md` is the earlier proposal and is kept for reference only.
 
-## 0. Progress and findings so far (as of 2026-11-16)
+## 0. Progress and findings so far (as of 2026-11-26)
 
 | Notebook | Status | Key result |
 | --- | --- | --- |
@@ -13,14 +13,19 @@ IE624 (Generative & Agentic AI) · Course project · Core approach document · N
 | `02_map_and_shift` | done | **RQ1:** category directions share one dominant dial (cos with A 0.78–0.96) but are more distinct than "one dial + noise" (PC1 share 0.84 vs null 0.98, p < 0.01 at every layer); residues cluster into ethical-wrongdoing vs graphic-content groups (topic confound to be tested causally). **RQ2:** cos(strict − neutral shift, A) = **0.16** [0.14, 0.18] — below the random-contrast floor (0.41); the instruction moves benign prompts only **9%** of the harmful-harmless gap along A, but compresses them toward a common level (a caution "set point"); no category-specific push (p = 0.999). Without masking the headline flips sign (−0.20) |
 | `03_causal_tests` | done | **Abliteration × instruction:** strict − neutral effect on Hard-1K = +0.59 [0.56, 0.63] normally, **+0.005** when abliterated (fast score) — but the judge still finds **22% redirects** under abliteration+strict (vs 0% neutral): abliteration kills refusal *openers*, lectures and hard refusals, not soft redirection. **Shift decomposition (L17, 5 template tokens):** removing the mean shift from strict prompts removes **96%** of the effect; adding it to neutral prompts recovers 50%. The along-A part (only 2–5% of the shift's squared norm) and the orthogonal part each carry about half (removal 49% / 45%; recovery 21% / 16%); random vector −4%. Recovery grows with layer (L6 ≈ 0 → L24 47%). **Categories:** category directions induce refusal on harmless prompts (41–97%, A: 92%); their residues induce **0%** → the sub-dials are A + topic, not separate refusal mechanisms. **Judge vs fast score:** agreement 87%, AUROC 0.92, precision 0.94, recall 0.64 (fast score misses redirects). Strict style: 63% redirect, 15% lecture, 3% hard refuse |
 | `04_instruction_atlas` | done | 16 instructions × held-out prompts. **Across instructions, the mean push along A (layer 17) does not predict over-refusal**: Spearman +0.01 [−0.52, +0.54] with the fast score, +0.44 [−0.05, +0.75] with judged rates (n = 15 instructions, 29 judged replies each — inconclusive, not negative). All pushes are small (−0.11 … +0.12 of the harmful-harmless gap); e.g. `strict_v2` moves 0.03 yet refuses 86%. **Within an instruction, the projection ranks prompts well** (AUROC 0.82–0.97) → A reads "how risky the prompt looks"; the instruction changes the threshold somewhere else. **1-D vs k-D** (10,592 pairs, held-out instructions): A alone 0.77, A + 4 category PCs 0.86, A + 4 random directions 0.75, 64-PC upper bound 0.95 → several dimensions predict clearly better (predictive, not causal: 03 showed residues do not induce refusal). **Category profiles:** rank-1 share 0.97, but leftover is 2.9× sampling noise. **Judged check:** the fast score fails for personas — librarian 0% vs 62% judged, compliance 28% vs 69%, travel 3% vs 38% (overall agreement 80%). Cautious personas cause over-refusal with no safety rule (mostly redirects). "Answer directly, no disclaimers" *raises* refusal (17% → 38% judged; 10% hard refusals): with hedging forbidden, replies split into plain compliance or refusal. `very_strict` refuses 80% of harmless Alpaca prompts |
+| `05_judged_grid` | done | All judged (2,600 replies). **Abliteration grid, 150 benign Hard-1K prompts** — over-refusal vs neutral, normal → abliterated: `strict` +0.69 [0.62, 0.77] → **+0.22** [0.15, 0.29] (**32% survives** [20%, 44%]); `librarian` +0.57 → **+0.19** (**34%** [22%, 47%]); `compliance` +0.41 → +0.04 (10% [−4%, 24%]). **Every surviving refusal is a redirect**: lecture + hard refuse drop to 0–1.3% in all abliterated conditions (strict normal: 24%). Harmful prompts (n = 50): refusal 88% → **4%** when abliterated, but the strict instruction brings it back to **26%** without the dial (all redirects). Survivors look like "here is the general process, but I won't give specifics" or (librarian) the request retold as a children's activity. **Judged atlas (16 instructions × 100 prompts):** push along A vs judged over-refusal Spearman **+0.30 [−0.24, +0.69]** (`<end_of_turn>`), +0.23 (final token) → no reliable relation across instructions; within an instruction the projection ranks prompts well (AUROC 0.69–0.93). E.g. `strict_v2` pushes 0.016 yet refuses 96%; `concise` pushes −0.11 yet adds +22 points. Replications: "no disclaimers" (`direct`) raises over-refusal +0.21 [0.10, 0.31]; `very_strict` switches style to lecture/hard refuse (63%); permissive prompts (`expert`, `no_refuse`) do not push refusal below neutral (−0.02) |
 
 **Methods policy adopted from these results:** all geometry and all ablations use directions with the 46 massive dimensions zeroed (`data/massive_dims.json`); raw (unmasked) values are reported alongside as a sensitivity check. The fast refusal score is used for screening; final behavioural numbers come from the blind LLM judge (`judge.py`, `hyde/glm-5.3-flash`), validated against \~100 hand labels. The fast score is precise (0.94) but misses about a third of judged refusals (redirects that do not start with "I"/"Sorry"), so any claim about *soft* refusal — in particular what survives abliteration — must use judged generations.
 
-**Current reading (to be confirmed by 04/05):** one refusal dial for the *refusal opener* (categories = A + topic); the strict instruction uses that dial only slightly but effectively, and also acts outside it; removing the dial removes saying "no" but not polite redirection (22% judged redirects, n = 60 — needs the larger 05 grid).
+**Answer to the title question:** *one dial for "no", a second route for "not quite".* The trained refusal direction is necessary for every lecture and hard refusal, for harmful and benign prompts and under every instruction; categories are that dial plus topic. But about a third of instruction-induced over-refusal (safety rule or cautious persona) survives its removal, entirely as soft redirection, and an instruction's average push along the dial does not tell how much it will over-refuse. The dial reads how risky the prompt looks; the instruction decides how much risk is tolerated, largely somewhere else.
+
+**Judge validation (2026-11-25, `IE624/runs/03_causal_tests/handlabel/agreement.json`):** refusal vs not — human vs GLM **86%** (n = 29), Claude vs GLM 88% (n = 50, blind second judge). Exact six-way style — human vs GLM only 59%, Claude vs GLM 84%: the human uses `comply` where GLM uses `comply_warning`, and `hard_refuse` where GLM uses `redirect`. → Report refusal rates from the judge with confidence; report styles only in coarse groups (comply / redirect / lecture + hard refuse), noting that style boundaries are subjective.
 
 **After 04:** the fast score is not valid for comparing *instructions* (personas change the opening words), so instruction-level claims must use judged replies; 04's fast-score atlas (Parts A–C) is reported as exploratory.
 
-**Remaining:** hand-label sheet (judge accuracy — now critical) → `05` judged grid: abliteration × instructions, including the cautious personas (RQ4/RQ5) and a larger judged atlas → `06` JSON export + interactive page → report and slides.
+**Interactive page: done (2026-11-26)** — [`page/index.html`](page/index.html), one self-contained offline file built by `python page/build_page.py` from the notebook outputs (§7).
+
+**Remaining:** slides → report → Q&A prep sheet. Optional (one \~20-min GPU run): token heatmap and steering-slider panels.
 
 ## 1. The idea in one paragraph
 
@@ -152,18 +157,20 @@ For each: its shift (instruction − neutral), the projection of that shift on D
 
 Compare cross-validated AUROC. A small gain → one dial is enough; a large gain → several dials, and we report how many.
 
+*As run (04, 05):* 16 instructions; 2c used A + 1/2/4 category PCs, A + 4 random directions (control) and a 64-PC upper bound, cross-validated over held-out instructions and held-out prompts. Instruction-level over-refusal is measured with judged replies (100 per instruction, 05), because the fast score fails for personas.
+
 ### Part 3 — Abliteration: what survives without the main dial? (RQ4)
 
 1. **Abliterate Direction A** (the selected, massive-dims-masked direction; cos 0.997 with A on the fit split): at every layer and token position, h ← h − (h·r̂)r̂. Implemented with **forward hooks** on every write into the residual stream: the embeddings and, in every layer, the outputs of `post_attention_layernorm` and `post_feedforward_layernorm`. Gemma 3 normalises each sublayer's output *before* adding it to the residual stream, so the Llama-style trick of orthogonalising `o_proj`/`down_proj` weights is **not exact** for Gemma 3; hooking the norm outputs is. The overhead is one projection per write — negligible. No modified weights are saved or released.
-2. Run harmful and benign held-out prompts under **None / Neutral / Strict**, on the normal and the abliterated model (a 2 × 3 grid), with full generations and style labels.
+2. Run harmful and benign held-out prompts under **None / Neutral / Strict**, on the normal and the abliterated model (a 2 × 3 grid), with full generations and style labels. *As run (05):* 150 benign Hard-1K prompts × {neutral, strict, librarian, compliance} × {normal, abliterated} — the two cautious personas were added after 04 showed they over-refuse without any safety rule — plus 50 harmful prompts × {none, strict} × {normal, abliterated}.
 3. Report remaining refusals **by category** and **by style**. Whatever the strict instruction still refuses after abliteration is the "other dial".
 4. **Sufficiency check:** add α·r̂ (α sweep) to harmless prompts with no instruction; does it reproduce the strict prompt's over-refusal *pattern* (fiction, games, fictional privacy), or only its rate?
-5. **Capability check** for every intervention: KL on harmless prompts plus a small MMLU/ARC sanity set, so a "refusal drop" is not just a broken model.
-6. *(Should)* **Subspace ablation curve:** ablate the top 1, 2, 4, 8 directions from Part 1 and plot remaining strict-induced refusal vs k. A flat curve means the instruction works through something outside the refusal subspace.
+5. **Capability check** for every intervention: KL on harmless prompts plus a small MMLU/ARC sanity set, so a "refusal drop" is not just a broken model. *As run:* KL on harmless prompts (0.018 for the selected direction, 01) and the judge's `other` label (garbled replies: ≤ 1% in every abliterated condition); the MMLU/ARC set was not run.
+6. *(Should; not run)* **Subspace ablation curve:** ablate the top 1, 2, 4, 8 directions from Part 1 and plot remaining strict-induced refusal vs k. A flat curve means the instruction works through something outside the refusal subspace.
 
 ### Part 4 — Refusal styles (RQ5)
 
-Using the five-style labels from Parts 2–3, compare the style distribution under None / Neutral / Strict, normal vs abliterated. Question: does the instruction change the *rate* of refusal, the *style*, or both?
+Using the five-style labels from Parts 2–3, compare the style distribution under None / Neutral / Strict, normal vs abliterated. *As reported:* three coarse groups (comply / redirect / lecture + hard refuse), because the hand-label check showed finer style boundaries are subjective. Question: does the instruction change the *rate* of refusal, the *style*, or both?
 
 ## 6. How we "observe" refusal inside the model
 
@@ -176,22 +183,25 @@ Refusal is not stored in single neurons: individual neurons respond to many unre
 
 *Stretch:* rank MLP neurons by activation difference (reported as correlated units only), or use Gemma Scope 2 sparse-autoencoder features, if available for the 4B model.
 
-## 7. The interactive results page (required deliverable)
+## 7. The interactive results page (required deliverable) — built
 
-A single static web page built from **precomputed JSON** — no GPU at viewing time, works on any laptop or projector.
+[`page/index.html`](page/index.html): a single static file (\~1.3 MB) with all data inlined, so it opens offline on any laptop or projector. `page/template.html` holds the layout and code; `page/build_page.py` reads the results under `IE624/runs/` and writes the page, so no number is typed by hand. Light and dark themes, hover tooltips, a table view for the atlas.
 
-| Panel | What the viewer does | What it shows |
-| --- | --- | --- |
-| 1. Token heatmap | Picks a prompt, toggles None / Neutral / Strict, drags a layer slider | Which words light up the refusal direction, and where in the network the model "decides" |
-| 2. Caution map | Toggles the instruction; dots animate | Every prompt as a dot: x = projection on Direction A, y = strongest direction orthogonal to it; colour = refuse / comply. Shows visually whether refusals separate along one axis or two |
-| 3. Category dials | Hovers cells | The category cosine matrix (raw / residue toggle), with example prompts per pair |
-| 4. Instruction atlas | Hovers dots | Each instruction's shift vs the over-refusal it causes, with the fit line; hover shows the instruction text |
-| 5. Abliteration grid | Picks a prompt | Real responses: normal vs abliterated × None / Neutral / Strict, colour-coded by style |
-| 6. Steering slider | Drags α | The model's actual reply as α·r̂ is added (precomputed grid of α values) |
+The page is written as a guided explanation, not only a results dashboard: each section explains the idea, then shows the evidence.
 
-Must-have panels: 1, 2, 5. Should-have: 3, 4, 6.
+| Section | What it shows | Interaction | Data |
+| --- | --- | --- | --- |
+| Hero | The question, the one-line answer, 4 headline numbers | — | 05 |
+| How it works | What the refusal direction is; find / remove / add | 2-D sketch (illustrative, labelled as such): slider removes the dial, button steers harmless prompts | — |
+| Setup | Model, datasets, instructions, fast score vs judge, judge validation | Expandable instruction texts | 03, hand labels |
+| RQ1 · One dial? | Category cosine matrix; category directions vs residues added to harmless prompts | Full / residue toggle, hover | 02, 03 |
+| RQ2 · The instruction | Caution meter (planned panel 2, as a 1-D strip per prompt set); refusal rate vs dial position, neutral vs strict (threshold shift); shift decomposition | None / Neutral / Strict toggle, hover | 02, 03 |
+| RQ4/5 · Remove the dial | Style bars normal vs abliterated for 4 instructions; over-refusal effect with CIs and survival; harmful check | Hover | 05 |
+| Explorer (planned panel 5) | Real replies to 150 benign prompts: 4 instructions × normal / abliterated, judge labels | Prompt picker, random, "still refused without the dial" filter | 05 |
+| RQ3 · Predicting (planned panel 4) | Push along the dial vs judged over-refusal, 16 instructions, CIs | Position toggle, hover with instruction text, table view | 05 |
+| Surprises, Method, Answer | Unexpected results, pipeline, rigour, limitations, answer per RQ | — | 04, 05 |
 
-*Stretch:* a live Gradio app on Colab for the presentation, where classmates type their own prompt and see the refusal meter live, with a recorded fallback.
+**Planned but not built:** panel 1 (token heatmap) and panel 6 (steering slider) need a new GPU run (all-token projections for \~50 showcase prompts; a small α × prompt generation grid, \~90 replies). The planned 2-D caution map became a 1-D strip because only the projection on A was exported. Harmful-prompt replies appear nowhere on the page.
 
 ## 8. Compute
 
@@ -208,14 +218,16 @@ Must-have panels: 1, 2, 5. Should-have: 3, 4, 6.
 | Judge | `judge.py` → `hyde/glm-5.3-flash` via `https://inference.hyde.tech/v1` (key in the `GLM_API_KEY` secret / env var, never in code); blind to condition; resumable |
 | Disk / RAM | Model + datasets + caches fit in Kaggle's disk; outputs to `/kaggle/working` (20 GB) or a Kaggle dataset |
 
-**Generation budget (the real cost):**
+**Generation budget — planned \~2,800; actually used \~3,500, all judged:**
 
-| What | Count |
-| --- | --- |
-| Behavioural re-run: 300 benign + 150 harmful held-out × None / Neutral / Strict | \~1,350 |
-| Abliteration grid: same prompts on the abliterated model | \~1,350 |
-| Steering slider: 10 prompts × 9 α values | \~90 |
-| **Total** | **\~2,800** |
+| Notebook | What | Replies |
+| --- | --- | --- |
+| 03 | Key conditions (instruction × abliteration × patching) on 60 benign + 40 harmful prompts | 440 |
+| 04 | 16 instructions × 29 benign prompts | 464 |
+| 05 | Abliteration grid 4 instructions × 2 × 150 benign; harmful check 2 × 2 × 50; judged atlas 12 more instructions × 100 | 2,600 |
+| **Total** | | **3,504** |
+
+Measured speed: \~3 s per reply in fp32 on 2× T4 with batch 16; the judge labels \~500 replies in 5 minutes.
 
 **Cost-saving rules:**
 
@@ -249,23 +261,23 @@ Everything is forward-pass only — no fine-tuning, no backprop.
 
 | Priority | Items |
 | --- | --- |
-| **Must** | Direction A; category directions + cosine matrix + PCA; strict − neutral shift with ceiling/floor/CIs; abliteration × instruction grid with style labels; page panels 1, 2, 5 |
-| **Should** | Instruction atlas + 1-D vs k-D prediction; Direction B; sufficiency (α sweep); subspace ablation curve; page panels 3, 4, 6 |
-| **Stretch** | Sublayer attribution + attention-to-instruction; neuron / SAE view; live Gradio demo |
+| **Must** | ✅ Direction A; ✅ category directions + cosine matrix + PCA; ✅ strict − neutral shift with ceiling/floor/CIs; ✅ abliteration × instruction grid with style labels; page panels ✅ 2, ✅ 5, ❌ 1 (token heatmap) |
+| **Should** | ✅ Instruction atlas + 1-D vs k-D prediction; ❌ Direction B; ✅ sufficiency (category / A induction in 03); ❌ subspace ablation curve; page panels ✅ 3, ✅ 4, ❌ 6 |
+| **Stretch** | ❌ Sublayer attribution; ❌ neuron / SAE view; ❌ live Gradio demo |
+| **Added along the way** | ✅ massive-dimension fix (01); ✅ shift decomposition by causal patching (03); ✅ fast score vs judge validation (03, 04); ✅ hand-label + second-judge check |
 
-## 10. Plan (one week, tight)
+## 10. Timeline (actual)
 
-| Day | Work |
+| Date | Done |
 | --- | --- |
-| 1 | Kaggle setup + Day-1 precision test; hooks and input format; judge + fast-score pipeline and validation; start behavioural re-run (None / Neutral / Strict) |
-| 2 | Part 1: Direction A, category directions, cosine matrix, PCA |
-| 3 | Part 2a + 2b: strict − neutral with baselines; instruction atlas |
-| 4 | Part 3: abliteration grid, sufficiency, capability checks; Part 4 styles |
-| 5 | Part 2c prediction test; subspace curve; export all JSON for the page |
-| 6 | Interactive page |
-| 7 | Report and slides |
+| 2026-11-09 | Approach fixed: Gemma-3-4B only, instructions prepended, abliteration as the causal test |
+| 2026-11-10 | `00` checks (fp32 on 2× T4); `01` direction selection, massive-dimension problem found and fixed; `02` map and shift |
+| 2026-11-14 | `03` causal tests + first judged replies |
+| 2026-11-16 | `04` instruction atlas |
+| 2026-11-25 | Hand labels + second-judge check |
+| 2026-11-26 | `05` judged grid (2,600 replies); interactive page |
 
-If behind: drop the subspace curve, then panel 6, then reduce the atlas to 10 instructions.
+**Still to do:** slides, report, Q&A prep sheet. Optional: token heatmap and steering slider (one short GPU run).
 
 ## 11. Possible outcomes
 
@@ -276,6 +288,8 @@ If behind: drop the subspace curve, then panel 6, then reduce the atlas to 10 in
 | One dial for harmful refusal, several for instruction-induced over-refusal (predicted) | **Both, depending on context.** Consistent with Wang et al. and Maskey et al., now shown for instructions specifically. |
 
 Any of these is a reportable result.
+
+**What we got:** closest to the third row, with a twist. One dial for refusal of harmful prompts and for every hard "no" (categories are that dial plus topic); instruction-induced over-refusal is *not* one-dimensional: an instruction's push along the dial does not predict its over-refusal, more directions predict it better, and about a third of it survives abliteration as soft redirection. See §0.
 
 ## 12. Ethics
 
